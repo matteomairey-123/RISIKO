@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Dice Command — Risk Battle Resolver</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-deep:#161A16;
+    --bg-panel:#1F241E;
+    --bg-panel-raised:#262C24;
+    --parchment:#E9DFC5;
+    --parchment-dim:#CFC3A0;
+    --brass:#B8923F;
+    --brass-bright:#D9B65F;
+    --attacker:#9E2B25;
+    --attacker-dark:#6E1E1A;
+    --defender:#E9DFC5;
+    --defender-ink:#22303A;
+    --defender-panel:#2C4A5E;
+    --defender-panel-dark:#1E333F;
+    --ink:#161A16;
+    --stamp-red:#B23A2E;
+    --gold:#C9A24B;
+    --line:rgba(184,146,63,0.35);
+  }
+
+  *{box-sizing:border-box;}
+
+  html,body{
+    margin:0;
+    padding:0;
+    background:var(--bg-deep);
+    color:var(--parchment);
+    font-family:'Oswald',sans-serif;
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  body{
+    min-height:100vh;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding:20px 12px 60px;
+    background:
+      radial-gradient(ellipse at 50% -10%, rgba(184,146,63,0.10), transparent 55%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 2px, transparent 2px, transparent 14px),
+      var(--bg-deep);
+  }
+
+  .frame{
+    width:100%;
+    max-width:460px;
+    position:relative;
+    background:var(--bg-panel);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:22px 18px 26px;
+    box-shadow:0 30px 60px -20px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(0,0,0,0.25);
+  }
+
+  .rivet{
+    position:absolute;
+    width:9px;height:9px;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, var(--brass-bright), var(--brass) 55%, #6b5323 100%);
+    box-shadow:0 1px 2px rgba(0,0,0,0.6);
+  }
+  .rivet.tl{top:10px;left:10px;}
+  .rivet.tr{top:10px;right:10px;}
+  .rivet.bl{bottom:10px;left:10px;}
+  .rivet.br{bottom:10px;right:10px;}
+
+  header.masthead{
+    text-align:center;
+    margin-bottom:22px;
+    padding-bottom:14px;
+    border-bottom:2px solid var(--brass);
+  }
+  header.masthead .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.35em;
+    color:var(--brass-bright);
+    text-transform:uppercase;
+    margin-bottom:4px;
+  }
+  header.masthead h1{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:42px;
+    letter-spacing:0.06em;
+    margin:0;
+    color:var(--parchment);
+    line-height:1;
+    text-shadow:0 2px 0 rgba(0,0,0,0.4);
+  }
+  header.masthead .sub{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--parchment-dim);
+    letter-spacing:0.12em;
+    margin-top:6px;
+    text-transform:uppercase;
+  }
+
+  /* ---------- SETUP SCREEN ---------- */
+  .army-row{
+    display:flex;
+    gap:12px;
+    margin-bottom:18px;
+  }
+  .army-card{
+    flex:1;
+    border-radius:6px;
+    padding:16px 10px 14px;
+    text-align:center;
+    position:relative;
+    overflow:hidden;
+    border:1px solid rgba(0,0,0,0.3);
+  }
+  .army-card.attacker-card{ background:linear-gradient(160deg,var(--attacker),var(--attacker-dark)); }
+  .army-card.defender-card{ background:linear-gradient(160deg,var(--defender-panel),var(--defender-panel-dark)); }
+
+  .army-card .label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.2em;
+    text-transform:uppercase;
+    color:rgba(255,255,255,0.75);
+    margin-bottom:8px;
+  }
+  .army-card .count{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:56px;
+    line-height:1;
+    color:#fff;
+    text-shadow:0 2px 0 rgba(0,0,0,0.35);
+  }
+  .stepper{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    margin-top:10px;
+  }
+  .step-btn{
+    width:38px;height:38px;
+    border-radius:50%;
+    border:1px solid rgba(255,255,255,0.4);
+    background:rgba(0,0,0,0.2);
+    color:#fff;
+    font-size:20px;
+    font-family:'Oswald',sans-serif;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    user-select:none;
+    transition:transform 0.08s ease, background 0.15s ease;
+  }
+  .step-btn:active{ transform:scale(0.9); background:rgba(0,0,0,0.4); }
+
+  .hint{
+    text-align:center;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    color:var(--parchment-dim);
+    margin:-6px 0 18px;
+    letter-spacing:0.04em;
+  }
+
+  .btn{
+    display:block;
+    width:100%;
+    border:none;
+    border-radius:5px;
+    padding:16px 14px;
+    font-family:'Oswald',sans-serif;
+    font-weight:600;
+    font-size:16px;
+    letter-spacing:0.09em;
+    text-transform:uppercase;
+    cursor:pointer;
+    margin-bottom:12px;
+    transition:transform 0.08s ease, filter 0.15s ease;
+  }
+  .btn:active{ transform:scale(0.98); }
+  .btn:last-child{ margin-bottom:0; }
+
+  .btn-primary{
+    background:linear-gradient(160deg,var(--brass-bright),var(--brass));
+    color:#221904;
+    box-shadow:0 6px 14px -6px rgba(0,0,0,0.6);
+  }
+  .btn-secondary{
+    background:transparent;
+    color:var(--parchment);
+    border:1.5px solid var(--brass);
+  }
+  .btn-outline-red{
+    background:transparent;
+    color:#e0a39d;
+    border:1.5px solid var(--attacker);
+    font-size:13px;
+    padding:12px 14px;
+  }
+  .btn:disabled{ opacity:0.4; cursor:not-allowed; }
+
+  .mode-note{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    color:var(--parchment-dim);
+    text-align:center;
+    margin:2px 0 16px;
+    line-height:1.5;
+  }
+
+  /* ---------- BATTLE SCREEN ---------- */
+  .hidden{ display:none !important; }
+
+  .status-row{
+    display:flex;
+    gap:12px;
+    margin-bottom:20px;
+  }
+  .status-box{
+    flex:1;
+    border-radius:6px;
+    padding:10px 8px 12px;
+    text-align:center;
+    border:1px solid rgba(0,0,0,0.3);
+  }
+  .status-box.attacker-card{ background:linear-gradient(160deg,var(--attacker),var(--attacker-dark)); }
+  .status-box.defender-card{ background:linear-gradient(160deg,var(--defender-panel),var(--defender-panel-dark)); }
+  .status-box .label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:rgba(255,255,255,0.75);
+  }
+  .status-box .count{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:38px;
+    color:#fff;
+    line-height:1.1;
+  }
+
+  .round-tag{
+    text-align:center;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--brass-bright);
+    letter-spacing:0.25em;
+    text-transform:uppercase;
+    margin-bottom:10px;
+    min-height:14px;
+  }
+
+  .dice-arena{
+    background:var(--bg-panel-raised);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:16px 12px;
+    margin-bottom:16px;
+    min-height:150px;
+  }
+  .dice-side-label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:var(--parchment-dim);
+    margin-bottom:8px;
+  }
+  .dice-row{
+    display:flex;
+    gap:10px;
+    justify-content:center;
+    margin-bottom:16px;
+    min-height:64px;
+  }
+  .dice-row:last-child{ margin-bottom:0; }
+
+  .die-wrap{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  .die{
+    width:52px;height:52px;
+    border-radius:8px;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    grid-template-rows:repeat(3,1fr);
+    padding:8px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.25);
+    position:relative;
+    animation:diePop 0.3s ease;
+  }
+  @keyframes diePop{
+    0%{ transform:scale(0.4) rotate(-8deg); opacity:0; }
+    100%{ transform:scale(1) rotate(0deg); opacity:1; }
+  }
+  .die.attacker-die{ background:linear-gradient(160deg,#B8382F,var(--attacker-dark)); }
+  .die.defender-die{ background:linear-gradient(160deg,#F2E9CF,var(--defender)); }
+
+  .pip{ width:8px;height:8px;border-radius:50%; align-self:center; justify-self:center; }
+  .attacker-die .pip{ background:#F2E9CF; }
+  .defender-die .pip{ background:var(--defender-ink); }
+
+  .die.win{ box-shadow:0 0 0 2px var(--gold), 0 4px 10px -2px rgba(201,162,75,0.6); }
+  .die.loss{ opacity:0.55; filter:grayscale(0.3); }
+  .die.spare{ opacity:0.45; }
+
+  .stamp{
+    position:absolute;
+    top:14px;left:50%;
+    transform:translateX(-50%) rotate(-14deg);
+    font-family:'Oswald',sans-serif;
+    font-weight:700;
+    font-size:11px;
+    letter-spacing:0.08em;
+    color:var(--stamp-red);
+    border:2px solid var(--stamp-red);
+    border-radius:3px;
+    padding:1px 4px;
+    background:rgba(233,223,197,0.15);
+    text-transform:uppercase;
+    pointer-events:none;
+    white-space:nowrap;
+  }
+  .die-tag{
+    margin-top:4px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:9px;
+    letter-spacing:0.1em;
+    color:var(--parchment-dim);
+    text-transform:uppercase;
+  }
+
+  .dispatch{
+    background:var(--bg-panel-raised);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:12px 14px;
+    max-height:150px;
+    overflow-y:auto;
+    margin-bottom:18px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--parchment-dim);
+    line-height:1.7;
+  }
+  .dispatch-title{
+    font-size:10px;
+    letter-spacing:0.2em;
+    color:var(--brass-bright);
+    text-transform:uppercase;
+    margin-bottom:6px;
+  }
+  .dispatch-line{
+    border-bottom:1px dashed rgba(233,223,197,0.12);
+    padding:4px 0;
+  }
+  .dispatch-line:last-child{ border-bottom:none; }
+  .dispatch-line .win-tag{ color:#8fc98f; }
+  .dispatch-line .loss-tag{ color:#e0a39d; }
+
+  .outcome-banner{
+    text-align:center;
+    border-radius:6px;
+    padding:16px 12px;
+    margin-bottom:16px;
+    border:1.5px solid var(--gold);
+    background:rgba(201,162,75,0.08);
+  }
+  .outcome-banner .headline{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:28px;
+    letter-spacing:0.05em;
+    color:var(--brass-bright);
+    line-height:1;
+  }
+  .outcome-banner .sub{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--parchment-dim);
+    margin-top:6px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+  }
+
+  .auto-note{
+    text-align:center;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--brass-bright);
+    letter-spacing:0.15em;
+    text-transform:uppercase;
+    margin-bottom:14px;
+    animation:blinker 1.2s linear infinite;
+  }
+  @keyframes blinker{ 50%{ opacity:0.35; } }
+
+  @media (prefers-reduced-motion: reduce){
+    .die{ animation:none; }
+    .auto-note{ animation:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="frame">
+  <div class="rivet tl"></div>
+  <div class="rivet tr"></div>
+  <div class="rivet bl"></div>
+  <div class="rivet br"></div>
+
+  <header class="masthead">
+    <div class="eyebrow">Field Dispatch Unit</div>
+    <h1>Dice Command</h1>
+    <div class="sub">Risk Battle Resolver</div>
+  </header>
+
+  <!-- ============ SETUP SCREEN ============ -->
+  <section id="setup-screen">
+    <div class="army-row">
+      <div class="army-card attacker-card">
+        <div class="label">Attacker</div>
+        <div class="count" id="setup-attacker-count">3</div>
+        <div class="stepper">
+          <div class="step-btn" onclick="stepSetup('attacker',-1)">&minus;</div>
+          <div class="step-btn" onclick="stepSetup('attacker',1)">&plus;</div>
+        </div>
+      </div>
+      <div class="army-card defender-card">
+        <div class="label" style="color:rgba(22,26,22,0.7);">Defender</div>
+        <div class="count" id="setup-defender-count" style="color:var(--ink);text-shadow:none;">2</div>
+        <div class="stepper">
+          <div class="step-btn" style="border-color:rgba(22,26,22,0.35);color:var(--ink);" onclick="stepSetup('defender',-1)">&minus;</div>
+          <div class="step-btn" style="border-color:rgba(22,26,22,0.35);color:var(--ink);" onclick="stepSetup('defender',1)">&plus;</div>
+        </div>
+      </div>
+    </div>
+    <div class="hint">Attacker must hold at least 2 armies to open fire</div>
+
+    <button class="btn btn-primary" onclick="startBattle('auto')">Roll Until Resolved</button>
+    <div class="mode-note">Dice fly automatically, round after round, until the territory falls or the attack is spent.</div>
+
+    <button class="btn btn-secondary" onclick="startBattle('manual')">Round By Round</button>
+    <div class="mode-note" style="margin-bottom:0;">You call each roll — and may sound the retreat at any time.</div>
+  </section>
+
+  <!-- ============ BATTLE SCREEN ============ -->
+  <section id="battle-screen" class="hidden">
+    <div class="status-row">
+      <div class="status-box attacker-card">
+        <div class="label">Attacker</div>
+        <div class="count" id="battle-attacker-count">0</div>
+      </div>
+      <div class="status-box defender-card">
+        <div class="label" style="color:rgba(22,26,22,0.7);">Defender</div>
+        <div class="count" id="battle-defender-count" style="color:var(--ink);">0</div>
+      </div>
+    </div>
+
+    <div class="round-tag" id="round-tag"></div>
+
+    <div class="dice-arena">
+      <div class="dice-side-label" style="color:#c97b73;">Attacker Rolls</div>
+      <div class="dice-row" id="attacker-dice-row"></div>
+      <div class="dice-side-label" style="color:#8fb3c9;">Defender Rolls</div>
+      <div class="dice-row" id="defender-dice-row"></div>
+    </div>
+
+    <div id="auto-note" class="auto-note hidden">Dice in the air&hellip;</div>
+
+    <div id="outcome-banner" class="outcome-banner hidden">
+      <div class="headline" id="outcome-headline"></div>
+      <div class="sub" id="outcome-sub"></div>
+    </div>
+
+    <div class="dispatch" id="dispatch-log">
+      <div class="dispatch-title">Battle Log</div>
+      <div id="dispatch-lines"></div>
+    </div>
+
+    <button class="btn btn-primary hidden" id="next-round-btn" onclick="manualRollRound()">Roll Next Round</button>
+    <button class="btn btn-outline-red hidden" id="retreat-btn" onclick="retreat()">Sound the Retreat</button>
+    <button class="btn btn-secondary hidden" id="new-battle-btn" onclick="resetToSetup()">New Battle</button>
+  </section>
+</div>
+
+<script>
+  // ---------- STATE ----------
+  let setupArmies = { attacker: 3, defender: 2 };
+  let state = null; // active battle state
+
+  function stepSetup(side, delta){
+    const min = side === 'attacker' ? 2 : 1;
+    const next = setupArmies[side] + delta;
+    if(next < min || next > 99) return;
+    setupArmies[side] = next;
+    document.getElementById('setup-' + side + '-count').textContent = next;
+  }
+
+  function rollDie(){ return 1 + Math.floor(Math.random() * 6); }
+
+  function rollN(n){
+    const out = [];
+    for(let i=0;i<n;i++) out.push(rollDie());
+    return out;
+  }
+
+  function pipPattern(value){
+    const patterns = {
+      1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,3,4,6,7,9]
+    };
+    return patterns[value];
+  }
+
+  function buildDie(value, role, outcome){
+    // role: 'attacker' | 'defender'   outcome: 'win' | 'loss' | 'spare'
+    const wrap = document.createElement('div');
+    wrap.className = 'die-wrap';
+
+    const die = document.createElement('div');
+    die.className = 'die ' + (role === 'attacker' ? 'attacker-die' : 'defender-die') + ' ' + outcome;
+
+    const active = pipPattern(value);
+    for(let cell=1; cell<=9; cell++){
+      const pip = document.createElement('div');
+      if(active.includes(cell)) pip.className = 'pip';
+      const col = ((cell-1) % 3) + 1;
+      const row = Math.floor((cell-1) / 3) + 1;
+      pip.style.gridColumn = col;
+      pip.style.gridRow = row;
+      die.appendChild(pip);
+    }
+
+    if(outcome === 'loss'){
+      const stamp = document.createElement('div');
+      stamp.className = 'stamp';
+      stamp.textContent = 'LOST';
+      die.appendChild(stamp);
+    }
+
+    wrap.appendChild(die);
+
+    const tag = document.createElement('div');
+    tag.className = 'die-tag';
+    tag.textContent = outcome === 'spare' ? 'spare' : (outcome === 'win' ? 'holds' : '');
+    if(tag.textContent) wrap.appendChild(tag);
+
+    return wrap;
+  }
+
+  // ---------- BATTLE FLOW ----------
+  function startBattle(mode){
+    state = {
+      attacker: setupArmies.attacker,
+      defender: setupArmies.defender,
+      mode: mode,
+      round: 0,
+      ended: false
+    };
+    document.getElementById('setup-screen').classList.add('hidden');
+    document.getElementById('battle-screen').classList.remove('hidden');
+    document.getElementById('dispatch-lines').innerHTML = '';
+    document.getElementById('attacker-dice-row').innerHTML = '';
+    document.getElementById('defender-dice-row').innerHTML = '';
+    document.getElementById('outcome-banner').classList.add('hidden');
+    document.getElementById('round-tag').textContent = '';
+    updateCounts();
+
+    if(mode === 'manual'){
+      document.getElementById('next-round-btn').classList.remove('hidden');
+      document.getElementById('retreat-btn').classList.remove('hidden');
+      document.getElementById('new-battle-btn').classList.add('hidden');
+      document.getElementById('auto-note').classList.add('hidden');
+    } else {
+      document.getElementById('next-round-btn').classList.add('hidden');
+      document.getElementById('retreat-btn').classList.add('hidden');
+      document.getElementById('new-battle-btn').classList.add('hidden');
+      autoPlay();
+    }
+  }
+
+  function updateCounts(){
+    document.getElementById('battle-attacker-count').textContent = state.attacker;
+    document.getElementById('battle-defender-count').textContent = state.defender;
+  }
+
+  function performRound(){
+    const aCount = Math.min(3, state.attacker - 1);
+    const dCount = Math.min(2, state.defender);
+    const aDice = rollN(aCount).sort((a,b)=>b-a);
+    const dDice = rollN(dCount).sort((a,b)=>b-a);
+    const comparisons = Math.min(aCount, dCount);
+
+    const aOutcome = new Array(aCount).fill('spare');
+    const dOutcome = new Array(dCount).fill('spare');
+    let aLoss = 0, dLoss = 0;
+
+    for(let i=0;i<comparisons;i++){
+      if(aDice[i] > dDice[i]){
+        dOutcome[i] = 'loss'; aOutcome[i] = 'win'; dLoss++;
+      } else {
+        aOutcome[i] = 'loss'; dOutcome[i] = 'win'; aLoss++; // ties favor defender
+      }
+    }
+
+    state.attacker -= aLoss;
+    state.defender -= dLoss;
+    state.round++;
+
+    return { aDice, dDice, aOutcome, dOutcome, aLoss, dLoss, round: state.round };
+  }
+
+  function renderRound(result){
+    const aRow = document.getElementById('attacker-dice-row');
+    const dRow = document.getElementById('defender-dice-row');
+    aRow.innerHTML = '';
+    dRow.innerHTML = '';
+    result.aDice.forEach((v,i) => aRow.appendChild(buildDie(v, 'attacker', result.aOutcome[i])));
+    result.dDice.forEach((v,i) => dRow.appendChild(buildDie(v, 'defender', result.dOutcome[i])));
+
+    document.getElementById('round-tag').textContent = 'Round ' + result.round;
+    updateCounts();
+
+    const line = document.createElement('div');
+    line.className = 'dispatch-line';
+    line.innerHTML =
+      'RND ' + result.round + ' &mdash; ATK ' + result.aDice.join('-') + ' STOP DEF ' + result.dDice.join('-') +
+      ' STOP <span class="loss-tag">DEF &minus;' + result.dLoss + '</span> STOP <span class="loss-tag">ATK &minus;' + result.aLoss + '</span>';
+    const log = document.getElementById('dispatch-lines');
+    log.appendChild(line);
+    const box = document.getElementById('dispatch-log');
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function checkEnd(){
+    if(state.defender <= 0) return 'conquered';
+    if(state.attacker <= 1) return 'exhausted';
+    return null;
+  }
+
+  function endBattle(reason){
+    state.ended = true;
+    document.getElementById('next-round-btn').classList.add('hidden');
+    document.getElementById('retreat-btn').classList.add('hidden');
+    document.getElementById('auto-note').classList.add('hidden');
+    document.getElementById('new-battle-btn').classList.remove('hidden');
+
+    const banner = document.getElementById('outcome-banner');
+    const headline = document.getElementById('outcome-headline');
+    const sub = document.getElementById('outcome-sub');
+    banner.classList.remove('hidden');
+
+    if(reason === 'conquered'){
+      headline.textContent = 'Territory Conquered';
+      sub.textContent = 'Defender wiped out — attacker holds ' + state.attacker + ' armies';
+    } else if(reason === 'exhausted'){
+      headline.textContent = 'Attack Repelled';
+      sub.textContent = 'Attacker down to 1 army and can fight no further';
+    } else if(reason === 'retreat'){
+      headline.textContent = 'Attacker Withdraws';
+      sub.textContent = 'Attacker ' + state.attacker + ' vs Defender ' + state.defender + ' — battle called off';
+    }
+  }
+
+  function manualRollRound(){
+    if(state.ended) return;
+    const result = performRound();
+    renderRound(result);
+    const end = checkEnd();
+    if(end) endBattle(end);
+  }
+
+  function retreat(){
+    if(state.ended) return;
+    endBattle('retreat');
+  }
+
+  function autoPlay(){
+    document.getElementById('auto-note').classList.remove('hidden');
+    const step = () => {
+      if(state.ended) return;
+      const result = performRound();
+      renderRound(result);
+      const end = checkEnd();
+      if(end){
+        endBattle(end);
+      } else {
+        setTimeout(step, 550);
+      }
+    };
+    setTimeout(step, 250);
+  }
+
+  function resetToSetup(){
+    state = null;
+    document.getElementById('battle-screen').classList.add('hidden');
+    document.getElementById('setup-screen').classList.remove('hidden');
+  }
+</script>
+
+</body>
+</html>
